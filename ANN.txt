@@ -1,0 +1,45 @@
+Announcing HDF5 for Python (h5py) 2.0
+=====================================
+
+We are proud to announce the availability of HDF5 for Python (h5py) 2.0 final.
+HDF5 for Python (h5py) is a general-purpose Python interface to the
+Hierarchical Data Format library, version 5.  HDF5 is a mature scientific
+software library originally developed at NCSA, designed for the fast,
+flexible storage of enormous amounts of data.
+
+From a Python programmer's perspective, HDF5 provides a robust way to
+store data, organized by name in a tree-like fashion.  You can create
+datasets (arrays on disk) hundreds of gigabytes in size, and perform
+random-access I/O on desired sections.  Datasets are organized in a
+filesystem-like hierarchy using containers called "groups", and 
+accessed using the traditional POSIX /path/to/resource syntax.
+
+Following beta feedback over the past few weeks, and taking into account the
+substantial number of changes in this release, we have decided to label this
+release as h5py 2.0.  While most existing code will run unmodified, we
+strongly encourage all users to consult the list of changes in the document
+"What's new in h5py 2.0":
+
+  http://h5py.alfven.org/docs/intro/whatsnew.html
+
+Downloads, FAQ and bug tracker are available at Google Code:
+
+* Google code site:  http://h5py.googlecode.com
+
+Most exciting changes
+---------------------
+
+* Significant improvements in stability, from a refactoring of the low-level
+  component which talks to HDF5.
+
+* HDF5 1.8.3 through 1.8.7 now work correctly and are officially supported.
+
+* Python 3.2 is officially supported by h5py!  Thanks especially to
+  Darren Dale for getting this working.
+
+* HDF5 1.6.X is no longer supported on any platform; following the release of
+  1.6.10 some time ago, this branch is no longer maintained by The HDF Group.
+
+* Python 2.6 or later is now required to run h5py.  This is a consequence of
+  the numerous changes made to h5py for Python 3 compatibility.
+
