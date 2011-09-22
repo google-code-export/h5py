@@ -10,8 +10,5 @@
 # 
 #-
 
-include "config.pxi"
 from defs cimport *
 
-IF H5PY_18API:
-    pass

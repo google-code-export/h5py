@@ -10,15 +10,13 @@
 # 
 #-
 
-include "config.pxi"
 from defs cimport *
 
 from _objects cimport ObjectID
 
 cdef class GroupID(ObjectID):
 
-    IF H5PY_18API:
-        cdef readonly object links
-    pass
+    cdef readonly object links
+
 
 
