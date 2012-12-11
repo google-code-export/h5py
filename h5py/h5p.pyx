@@ -57,13 +57,13 @@ cdef object propwrap(hid_t id_in):
         else:
             raise ValueError("No class found for ID %d" % id_in)
 
-        return pcls.open(id_in)
+        return pcls(id_in)
     finally:
         H5Pclose_class(clsid)
 
 cdef object lockcls(hid_t id_in):
     cdef PropClassID pid
-    pid = PropClassID.open(id_in)
+    pid = PropClassID(id_in)
     pid.locked = 1
     return pid
 
@@ -173,28 +173,14 @@ cdef class PropInstanceID(PropID):
 
          Create a new copy of an existing property list object.
         """
-        return type(self)(H5Pcopy(self.id))
-
-
-    def _close(self):
-        """()
-
-        Terminate access through this identifier.  You shouldn't have to
-        do this manually, as propery lists are automatically deleted when
-        their Python wrappers are freed.
-        """
-        with _objects.registry.lock:
-            H5Pclose(self.id)
-            if not self.valid:
-                del _objects.registry[self.id]
-
+        return propwrap(H5Pcopy(self.id))
 
     def get_class(self):
         """() => PropClassID
 
         Determine the class of a property list object.
         """
-        return PropClassID.open(H5Pget_class(self.id))
+        return PropClassID(H5Pget_class(self.id))
 
 cdef class PropCreateID(PropInstanceID):
 
@@ -774,7 +760,7 @@ cdef class PropFAID(PropInstanceID):
         H5Pget_fapl_family(self.id, &msize, &mfapl_id)
 
         if mfapl_id > 0:
-            plist = PropFAID.open(mfapl_id)
+            plist = PropFAID(mfapl_id)
 
         return (msize, plist)
 

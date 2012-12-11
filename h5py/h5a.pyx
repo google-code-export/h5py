@@ -45,7 +45,7 @@ def create(ObjectID loc not None, char* name, TypeID tid not None,
         Link access property list for obj_name
     """
 
-    return AttrID.open(H5Acreate_by_name(loc.id, obj_name, name, tid.id,
+    return AttrID(H5Acreate_by_name(loc.id, obj_name, name, tid.id,
             space.id, H5P_DEFAULT, H5P_DEFAULT, pdefault(lapl)))
 
 
@@ -74,10 +74,10 @@ def open(ObjectID loc not None, char* name=NULL, int index=-1, *,
         raise TypeError("Exactly one of name or idx must be specified")
 
     if name != NULL:
-        return AttrID.open(H5Aopen_by_name(loc.id, obj_name, name,
+        return AttrID(H5Aopen_by_name(loc.id, obj_name, name,
                         H5P_DEFAULT, pdefault(lapl)))
     else:
-        return AttrID.open(H5Aopen_by_idx(loc.id, obj_name,
+        return AttrID(H5Aopen_by_idx(loc.id, obj_name,
             <H5_index_t>index_type, <H5_iter_order_t>order, index,
             H5P_DEFAULT, pdefault(lapl)))
 
@@ -320,20 +320,6 @@ cdef class AttrID(ObjectID):
             tid = self.get_type()
             return tid.py_dtype()
 
-
-    def _close(self):
-        """()
-
-        Close this attribute and release resources.  You don't need to
-        call this manually; attributes are automatically destroyed when
-        their Python wrappers are freed.
-        """
-        with _objects.registry.lock:
-            H5Aclose(self.id)
-            if not self.valid:
-                del _objects.registry[self.id]
-
-
     def read(self, ndarray arr not None):
         """(NDARRAY arr)
 
@@ -413,7 +399,7 @@ cdef class AttrID(ObjectID):
 
         Create and return a copy of the attribute's dataspace.
         """
-        return SpaceID.open(H5Aget_space(self.id))
+        return SpaceID(H5Aget_space(self.id))
 
 
     def get_type(self):
