@@ -210,6 +210,7 @@ cdef int reg_sweep() except -1:
     dead_objs = [r() for r in reg_refs if r() is not None and not r().valid]
     for obj in dead_objs:
         obj._c_close()
+    reg_refs = [r for r in reg_refs if r() is not None and r().valid]
     reg_ids = [id(r()) for r in reg_refs]
 
 
