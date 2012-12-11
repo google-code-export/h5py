@@ -74,14 +74,14 @@ def create(ObjectID loc not None, object name, TypeID tid not None,
         else:
             dsid = H5Dcreate_anon(loc.id, tid.id, space.id,
                      pdefault(dcpl), H5P_DEFAULT)
-        return DatasetID.open(dsid)
+        return DatasetID(dsid)
 
 def open(ObjectID loc not None, char* name):
     """ (ObjectID loc, STRING name) => DatasetID
 
         Open an existing dataset attached to a group or file object, by name.
     """
-    return DatasetID.open(H5Dopen(loc.id, name))
+    return DatasetID(H5Dopen(loc.id, name))
 
 # --- Proxy functions for safe(r) threading -----------------------------------
 
@@ -129,20 +129,6 @@ cdef class DatasetID(ObjectID):
             cdef SpaceID sid
             sid = self.get_space()
             return sid.get_simple_extent_ndims()
-
-
-    def _close(self):
-        """ ()
-
-            Terminate access through this identifier.  You shouldn't have to
-            call this manually; Dataset objects are automatically destroyed
-            when their Python wrappers are freed.
-        """
-        with _objects.registry.lock:
-            H5Dclose(self.id)
-            if not self.valid:
-                del _objects.registry[self.id]
-
 
     def read(self, SpaceID mspace not None, SpaceID fspace not None,
                    ndarray arr_obj not None, TypeID mtype=None,
@@ -282,7 +268,7 @@ cdef class DatasetID(ObjectID):
 
             Create and return a new copy of the dataspace for this dataset.
         """
-        return SpaceID.open(H5Dget_space(self.id))
+        return SpaceID(H5Dget_space(self.id))
 
 
     def get_space_status(self):

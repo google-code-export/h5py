@@ -67,7 +67,7 @@ def open(char* name, unsigned int flags=H5F_ACC_RDWR, PropFAID fapl=None):
 
     Keyword fapl may be a file access property list.
     """
-    return FileID.open(H5Fopen(name, flags, pdefault(fapl)))
+    return FileID(H5Fopen(name, flags, pdefault(fapl)))
 
 
 def create(char* name, int flags=H5F_ACC_TRUNC, PropFCID fcpl=None,
@@ -86,7 +86,7 @@ def create(char* name, int flags=H5F_ACC_TRUNC, PropFCID fcpl=None,
     To keep the behavior in line with that of Python's built-in functions,
     the default is ACC_TRUNC.  Be careful!
     """
-    return FileID.open(H5Fcreate(name, flags, pdefault(fcpl), pdefault(fapl)))
+    return FileID(H5Fcreate(name, flags, pdefault(fcpl), pdefault(fapl)))
 
 
 def flush(ObjectID obj not None, int scope=H5F_SCOPE_LOCAL):
@@ -254,8 +254,8 @@ cdef class FileID(GroupID):
 
     def __cinit__(self, id):
         # lock the id proxy for as long as the the identifier is open
-        self.locked = True
-
+        self.nonlocal_close = 1
+        self.manual_close = 1
 
     def close(self):
         """()
@@ -265,10 +265,7 @@ cdef class FileID(GroupID):
         physical file might not be closed until all remaining open
         identifiers are freed.
         """
-        with _objects.registry.lock:
-            self.locked = False
-            H5Fclose(self.id)
-            _objects.registry.cleanup()
+        self._close()
 
 
     def reopen(self):
@@ -278,7 +275,7 @@ cdef class FileID(GroupID):
         The new identifier is guaranteed to neither be mounted nor contain
         a mounted file.
         """
-        return FileID.open(H5Freopen(self.id))
+        return FileID(H5Freopen(self.id))
 
 
     def get_filesize(self):
