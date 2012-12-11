@@ -233,14 +233,15 @@ cdef class ObjectID:
                 return False
             return H5Iget_type(self.id) > 0
 
-    def __cinit__(self, id):
+    def __cinit__(self, id_):
         global reglock
-        self.id = id
+        self.id = id_
         self.locked = 0
         self.nonlocal_close = 0
         self.manual_close = 0
         with reglock:
-            reg_add(self)
+            if self.id != 0:    # Don't register things like h5s.ALL
+                reg_add(self)
 
     def _close(self):
         """ Closes the object and wipes out this instance's hid_t.
