@@ -285,7 +285,7 @@ cdef class ObjectID:
 
     def __copy__(self):
         cdef ObjectID cpy
-        cpy = type(self)(self.id)
+        cpy = type(self)(self.id)  # TODO: I think we should H5Iinc_ref here...
         return cpy
 
     def __richcmp__(self, object other, int how):
