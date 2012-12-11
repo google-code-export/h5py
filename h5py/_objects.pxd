@@ -3,11 +3,11 @@ from defs cimport *
 cdef class ObjectID:
 
     cdef object __weakref__
-    cdef readonly hid_t id            # Raw HDF5 identifier
-    cdef public int locked            # For immortal identifiers (H5Tlock()-ed)
-    cdef public int nonlocal_close    # Closing the object may invalidate others
-    cdef public int manual_close      # Don't auto-close when deallocated
-    cdef object _hash                 # Caches computed hash value
+    cdef readonly hid_t id      # Raw HDF5 identifier
+    cdef readonly int locked    # For immortal identifiers (H5Tlock()-ed)
+    cdef int nonlocal_close     # Closing the object may invalidate others
+    cdef int manual_close       # Don't auto-close when deallocated
+    cdef object _hash           # Caches computed hash value
 
     cdef int _c_close(self)
 
