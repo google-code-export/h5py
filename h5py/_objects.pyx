@@ -1,31 +1,6 @@
 
 """
     Implements ObjectID base class and global object registry.
-
-    It used to be that we could store the HDF5 identifier in an ObjectID
-    and simply close it when the object was deallocated.  However, since
-    HDF5 1.8.5 they have started recycling object identifiers, which
-    breaks this system.
-
-    We now use a global registry of object identifiers.  This is implemented
-    via a dictionary which maps an integer representation of the identifier
-    to a weak reference of an ObjectID.  There is only one ObjectID instance
-    in the universe for each integer identifier.  When the HDF5 reference
-    count for a identifier reaches zero, HDF5 closes the object and reclaims
-    the identifier. When this occurs, the identifier and weak reference must
-    be deleted from the registry. If an ObjectID is deallocated, it is deleted
-    from the registry and the HDF5 reference count is decreased, HDF5 closes
-    and reclaims the identifier for future use.
-
-    All interactions with the registry must be synchronized for thread safety.
-    You must acquire "registry.lock" before interacting with the registry. The
-    registry is not internally synchronized, in the interest of performance: we
-    don't want the same thread attempting to acquire the lock multiple times
-    during a single operation, if we can avoid it.
-
-    All ObjectIDs and subclasses thereof should be opened with the "open"
-    classmethod factory function, such that an existing ObjectID instance can
-    be returned from the registry when appropriate.
 """
 
 from defs cimport *
@@ -161,15 +136,16 @@ cdef inline void unlock_lock(FastRLock lock) nogil:
 # For objects like FileIDs, a close() can remotely invalidate other objects.
 # It's not enough to set the .id of the FileID to zero; if, for example, a
 # DatasetID is open, it will be invalidated but still have a nonzero .id, which
-# could lead to double-closing when the DatasetID is deallocated.
+# could lead to double-closing when it's eventually deallocated.
 #
 # In the latter case, we have to check all IDs in existence, and zero out their
 # identifiers if they're invalid.
 #
-# Identifiers are tracked by two parallel Python lists.  One holds the ObjectID
-# Python identifiers (id(obj)), while the other holds weakref objects which
-# point to the ObjectID instances.  Weakrefs are used to ensure that an ObjectID
-# which goes out of scope is actually collected.
+# Identifiers are tracked by two parallel Python lists.  One holds weakref
+# objects which point to the ObjectID instances.  Weakrefs are used to ensure
+# that an ObjectID which goes out of scope is actually collected.  The other
+# list is an index containing the Python IDs (id(obj)) of the instances.  This
+# provides a fast way to remove an object from the registry.
 #
 # The basic contract here is that once ._close() is called, the identifier is
 # inert and will not participate in double-closing nonsense.  The hard part is
@@ -177,9 +153,9 @@ cdef inline void unlock_lock(FastRLock lock) nogil:
 # calls such as H5Fclose in the case of H5P_CLOSE_STRONG.
 #
 # 1. On initialization:
-#       * The hid_t is recorded as .id
-#       * The object's Python ID and a weak reference are recorded in parallel
-#           lists
+#       * The HDF5 hid_t identifier is recorded as .id
+#       * The object's Python ID and a weak reference are recorded
+#           in parallel lists
 #       * The attribute .locked is set to 0 (unlocked)
 #       * The attribute .nonlocal_close is set to 0 (local close only)
 #       * The attribute .manual_close is set to 0 (auto-close on __dealloc__)
@@ -187,20 +163,22 @@ cdef inline void unlock_lock(FastRLock lock) nogil:
 # 2. When ._close() is called:
 #       * If the identifier is locked or already closed
 #           - Return without doing anything
-#       * The identifier is tested for validity
-#           - If the object is valid H5Idec_ref is called.
+#       * If the identifier is valid
+#           - The HDF5 reference count is decremented (H5Idec_ref)
 #       * The attribute .id is set to 0
 #       * The Python ID and weakref are removed from the parallel lists 
-#       * If .nonlocal_close is nonzero, the lists are swept for invalid
-#         ObjectIDs
+#       * If .nonlocal_close is nonzero, the lists are swept for
+#           invalid ObjectIDs
 #           - Any invalid ObjectID is _close()-ed, which removes it from 
 #             the lists.
 #
 # 3. When an object is deallocated:
-#       * _close() is called.
+#       * If .manual_close is not set
+#           - The object is _close()-ed
 #
 # Locking:
-#   * Whenever the parallel lists are accessed
+#   * Whenever the parallel lists are accessed; on initialization and in
+#       the _close() method
 
 cdef FastRLock reglock = FastRLock()
 
@@ -232,7 +210,6 @@ cdef int reg_sweep() except -1:
     dead_objs = [r() for r in reg_refs if r() is not None and not r().valid]
     for obj in dead_objs:
         obj._c_close()
-    reg_refs = [r for r in reg_refs if r() is not None and r().valid]
     reg_ids = [id(r()) for r in reg_refs]
 
 
@@ -359,3 +336,94 @@ cdef hid_t pdefault(ObjectID pid):
     if pid is None:
         return <hid_t>H5P_DEFAULT
     return pid.id
+
+
+# --- Debug/performance functions for identifiers follow ----------------------
+
+def reg_stats():
+    """ Return a namedtuple with information about the state of the registry
+
+    0 (total):   Total number of identifiers
+    1 (valid):   Number of valid identifiers
+    2 (invalid): Invalid entries (ObjectID present, .id nonzero but invalid)
+    3 (zero):    Zero entries (ObjectID present, .id zero)
+    4 (none):    ObjectID deallocated
+    """
+    global reglock, reg_refs
+    from collections import namedtuple
+
+    n_tot = 0
+    n_none = 0
+    n_valid = 0
+    n_invalid = 0
+    n_zero = 0
+
+    with reglock:
+        n_tot = len(reg_refs)
+        for r in reg_refs:
+            o = r()
+            if o is None:
+                n_none += 1
+            elif o.valid:
+                n_valid += 1
+            elif o.id == 0:
+                n_zero += 1
+            else:
+                n_invalid += 1
+
+    tcls = namedtuple('reg_stats', ['total','valid','invalid','zero','none'])
+    return tcls._make((n_tot, n_valid, n_invalid, n_zero, n_none))
+
+def id_stats():
+    """ Return a named tuple with information about all live identifiers
+
+    0 (files):      number of live FileIDs
+    1 (groups):     number of live GroupIDs
+    2 (datasets):   number of live DatasetIDs
+    3 (attrs):      number of live AttrIDs
+    4 (types):      number of live TypeIDs
+    5 (spaces):     number of live SpaceIDs
+    6 (proplists):  number of live PropIDs (both instances and list classes)
+    7 (other):      unknown instances
+    """
+    global reglock, reg_refs
+    from collections import namedtuple
+
+    from h5py import h5a, h5f, h5g, h5d, h5t, h5s, h5p
+
+    nfiles = 0
+    ngroups = 0
+    ndsets = 0
+    nattrs = 0
+    ntypes = 0
+    nspaces = 0
+    nplists = 0
+    nother = 0
+
+    with reglock:
+        for r in reg_refs:
+            o = r()
+            if o is None or not o.valid:
+                continue
+            if isinstance(o, h5a.AttrID):
+                nattrs += 1
+            elif isinstance(o, h5f.FileID):
+                nfiles += 1
+            elif isinstance(o, h5d.DatasetID):
+                ndsets += 1
+            elif isinstance(o, h5g.GroupID):
+                ngroups += 1
+            elif isinstance(o, h5t.TypeID):
+                ntypes += 1
+            elif isinstance(o, h5s.SpaceID):
+                nspaces += 1
+            elif isinstance(o, h5p.PropID):
+                nplists += 1
+            else:
+                nother += 1
+
+    tcls = namedtuple('id_stats', ['files', 'groups', 'datasets', 'attrs',
+                'types', 'spaces', 'proplists','other'])
+    return tcls._make((nfiles, ngroups, ndsets, nattrs, ntypes, nspaces,
+            nplists, nother))
+
