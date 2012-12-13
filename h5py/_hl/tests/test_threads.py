@@ -45,3 +45,27 @@ class TestIterateDeadlock(TestCase):
         for idx in xrange(100):
             self.read_all_attrs()
         thread.join()
+
+class TestContainsPrintsGarbage(TestCase):
+
+    """
+        Checks for garbage printed to stderr when performing containership
+        testing.  Unfortunately we can't programmatically test this because
+        HDF5 writes directly to stderr from C.  This class is designed to
+        trigger the bug so that it can at least be observed in the test
+        suite output.
+
+    """
+
+    def test_garbage(self):
+        """ Try to print garbage in response to containership test in thread
+        """
+
+        def check():
+            a = "Hello" in f
+
+        with h5py.File(self.mktemp(),'w') as f:
+            thread = threading.Thread(target=check)
+            thread.start()
+            thread.join()
+
