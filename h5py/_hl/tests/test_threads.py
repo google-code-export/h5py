@@ -33,7 +33,6 @@ class TestIterateDeadlock(TestCase):
             return dict(f.attrs)
 
     def read_only_in_thread(self):
-        h5py._errors.silence_errors()  # threading bug where errors are not shut off
         for idx in xrange(100):
             all_attrs = self.read_all_attrs()
 
