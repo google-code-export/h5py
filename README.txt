@@ -1,11 +1,10 @@
-README file for h5py version 2.1.0
+README file for h5py version 2.1.1
 ==================================
 
 Websites
 --------
 
-  * Docs, general info: h5py.alfven.org
-  * Downloads, FAQ, bug tracker:  h5py.googlecode.com
+  * All downloads & docs: http://www.h5py.org
   * Mailing list: h5py at googlegroups
 
 Prerequisites
