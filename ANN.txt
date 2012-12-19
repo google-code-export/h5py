@@ -1,36 +1,41 @@
-Announcing HDF5 for Python (h5py) 2.1.0
+Announcing HDF5 for Python (h5py) 2.1.1
 =======================================
 
-We are proud to announce the availability of HDF5 for Python (h5py) 2.1.0.
-HDF5 for Python (h5py) is a general-purpose Python interface to the
-Hierarchical Data Format library, version 5.  HDF5 is a mature scientific
-software library originally developed at NCSA, designed for the fast,
-flexible storage of enormous amounts of data.
+We are pleased to announce the availability of HDF5 for Python (h5py) 2.1.1!
 
-From a Python programmer's perspective, HDF5 provides a robust way to
-store data, organized by name in a tree-like fashion.  You can create
-datasets (arrays on disk) hundreds of gigabytes in size, and perform
-random-access I/O on desired sections.  Datasets are organized in a
-filesystem-like hierarchy using containers called "groups", and 
-accessed using the traditional POSIX /path/to/resource syntax.
+The h5py package is a Pythonic interface to the HDF5 binary data format.
+It lets you store huge amounts of numerical data, and easily manipulate that
+data from NumPy. For example, you can slice into multi-terabyte datasets
+stored on disk, as if they were real NumPy arrays. Thousands of datasets 
+can be stored in a single file, categorized and tagged however you want.
 
-Downloads, FAQ and bug tracker are available at Google Code:
+H5py uses straightforward NumPy and Python metaphors, like dictionary and
+NumPy array syntax. For example, you can iterate over datasets in a file,
+or check out the .shape or .dtype attributes of datasets. You don't need to
+know anything special about HDF5 to get started.
 
-* Google code site:  http://h5py.googlecode.com
+In addition to the easy-to-use high level interface, h5py rests on an
+object-oriented Cython wrapping of the HDF5 C API. Almost anything you can do
+from C in HDF5, you can do from h5py.
 
-Documentation is available at Alfven.org:
+Best of all, the files you create are in a widely-used standard binary format,
+which you can exchange with other people, including those who use programs 
+like IDL and MATLAB.
 
-* http://h5py.alfven.org
+All downloads and documentation are available at the new h5py web site:
 
-What's new in h5py 2.1
------------------------
+* http://www.h5py.org
 
-* The HDF5 Dimension Scales API is now available, along with high-level
-  integration with Dataset objects.  Thanks to D. Dale for implementing this.
 
-* Unicode scalar strings can now be stored in attributes.
+What's new in h5py 2.1.1
+------------------------
 
-* Dataset objects now expose a .size property giving the total number of
-  elements.
+* Fixed memory leak affecting variable-length strings (thanks to Luke
+  Campbell for excellent bug reports)
 
-* Many bug fixes.
+* Fixed threading deadlock related to H5Aiterate calls
+
+* Disabled spurious HDF5 error messages related to containership testing
+  in threaded programs
+
+* New identifier management system to prepare for HDF5 1.10
